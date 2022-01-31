@@ -1,4 +1,4 @@
-Spectrum Scale Grafana Bridge Ansible role
+Ansible role - Spectrum Scale Bridge for grafana
 =========
 **First release!**
 
@@ -16,7 +16,7 @@ Following feature
 
 - Downloads/GitClone the [ibm-spectrum-scale-bridge-for-grafana](https://github.com/IBM/ibm-spectrum-scale-bridge-for-grafana) to build the Container image
 - Fetches the grafana gpfsconfig (/var/mmfs/gen/mmsdrfs) to be imported into the container. 
-- Build Spectrum Scale grafana bridge container
+- Build Spectrum Scale grafana bridge container from source (github)
 - Creates the APIKey from Spectrum Scale Cluster that is used to collect data `mmperfmon config add --apikey`
 - Generate a self-signed SSL certificate, so that communication between the bridge and the Grafana instance is encrypted.  
 - Starts and create a Systemd Service for the Scale Grafana bridge container. 
@@ -27,8 +27,6 @@ Following feature
 - The ability to Cleanup the environments
 
 
-
-# <img alt="Ansible role for Spectrum Scale Grafana bridge" height="323" src="./images/scale-grafana-bridge.jpg" title="Ansible role for Spectrum Scale Grafana bridge" width="365"/>
 
 ![Ansible role for Spectrum Scale Grafana bridge](./images/scale-grafana-bridge.jpg)
 

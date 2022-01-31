@@ -36,7 +36,7 @@ scale_grafana_bridge_cleanup_image: "{{ scale_grafana_bridge_cleanup }}"
 
 -------
 
-###Section for Spectrum Scale Bridge Container in Podman.
+### Section for Spectrum Scale Bridge Container in Podman.
 
 Run the Container as non-root user, # todo: this for future function, running container with user.
 ```yaml
@@ -55,7 +55,7 @@ scale_grafana_bridge_build_image_tag: 7.0.4 #default 7.0.4
 -----
 
 
-##Variables for Spectrum Scale Bridge Container in Podman.
+### Variables for Spectrum Scale Bridge Container in Podman.
 
 
 IP or hostname #where we should point the Grafana datasource to
@@ -111,7 +111,7 @@ scale_grafana_bridge_container_environment:
 ```
 
 
-This passes the whole section underneath to the ENV section in PODMAN, so that we can add parameters easily.
+- This passes the whole section underneath to the ENV section in PODMAN, so that we can add parameters easily.
 
 ```yaml
 scale_grafana_bridge_container_env:
@@ -126,16 +126,16 @@ scale_grafana_bridge_container_env:
 ```
 
 
-The path is used outside the container:
+- The path is used outside the container:
 ```yaml
 scale_grafana_bridge_bridge_container_log:
-  local_path: /var/log/ibm_scale_grafana_bridge
+  local_path: "/var/log/ibm_scale_grafana_bridge"
 ```
 
 
-The name and location of the Spectrum Scale APIKEY.
-- The paths are only used outside the container, the files name are used inside the same container.
-- The scale apikey name needs to be with underscore if dividers used. 
+- The name and location of the Spectrum Scale APIKEY.
+  - The paths are only used outside the container, the files name are used inside the same container.
+  - The scale apikey name needs to be with underscore if dividers used. 
 
 ```yaml
 scale_grafana_bridge_scale_perf_apikey:
@@ -145,15 +145,15 @@ scale_grafana_bridge_scale_perf_apikey:
 
 ### Section for TLS Certificate
 
-This is used when generating Self Signed Certificates. 
+- This is used when generating Self Signed Certificates. 
 
-Common name is used when generating the TLS KEY.
-- **Change the common name to your server,** this just a alias into `scale_grafana_bridge_scale_perf_ssl_cert`
+- Common name is used when generating the TLS KEY.
+  - **Change the common name to your server,** this just a alias into `scale_grafana_bridge_scale_perf_ssl_cert`
 ```yaml
 scale_grafana_bridge_scale_perf_ssl_cert_common_name: "grafana"
 ```
 
-This is used when generating Self Signed Certificates.
+- This is used when generating Self Signed Certificates.
 ```yaml
 scale_grafana_bridge_scale_perf_ssl_cert:
   tlskeypath: "/etc/ibm_scale_grafana_bridge/certs/"
@@ -201,9 +201,8 @@ scale_grafana_bridge_grafana_api_keys:
 ```
 
 
-
-This will save the Grafana APIKey on remote host,
-if this set, it will check if key exist in the `scale_grafana_bridge_grafana_api_keys_dir:` and use that.
+- This will save the Grafana APIKey on remote host,
+  - if this set, it will check if key exist in the `scale_grafana_bridge_grafana_api_keys_dir:` and use that.
 ```yaml
 scale_grafana_bridge_grafana_api_key_save: false
 ```
@@ -213,63 +212,63 @@ scale_grafana_bridge_grafana_api_keys_dir: "/tmp/grafana/keys"
 ```
 
 
-Will give out extra task with debug level. not in use for all task.
-- TODO add Verbosity instead
+- Will give out extra task with debug level. not in use for all task.
+  - TODO add Verbosity instead
 ```yaml
 scale_grafana_bridge_debug: false #default: false 
 ```
 
-To run the task with no_log for not output keys and API keys, (not valid on all task when set_facts.)
+- To run the task with no_log for not output keys and API keys, (not valid on all task when set_facts.)
 ```yaml
 scale_grafana_bridge_no_log: true  #default: true
 ```
 
-Name of the grafana folder to create and where it should be created.
+- Name of the grafana folder to create and where it should be created.
 ```yaml
 scale_grafana_bridge_grafana_folder: "{{ scale_grafana_bridge_scale_cluster_name }}"
 ```
-When set, it creates the grafana folder that is used to import dashboard, if not you need to create it manually.
+- When set, it creates the grafana folder that is used to import dashboard, if not you need to create it manually.
 ```yaml
 scale_grafana_bridge_grafana_folder_create: true #default true
 ```
 
-Set this to use the same grafana_folder on all Dashboard imports
+- Set this to use the same grafana_folder on all Dashboard imports
 ```yaml
 scale_grafana_bridge_grafana_folder_global: "{{ scale_grafana_bridge_grafana_folder }}"
 ```
 
-Variables for the Grafana task to validate certs against Grafana instance.
+- Variables for the Grafana task to validate certs against Grafana instance.
 ```yaml
 scale_grafana_bridge_grafana_validate_certs: "no"
 ```
 
-Variables for the Grafana Folder task with state. valid variables: `absent`, `present`,
-- absent will remove what's created
+- Variables for the Grafana Folder task with state. valid variables: `absent`, `present`,
+  - absent will remove what's created
 ```yaml
 scale_grafana_bridge_grafana_folder_state: "present"
 ```
 
-If you don't have `owerwrite` when re-run (playbook) import grafana dashboards, it will fail with error: "Unable to update the dashboard xxx : The dashboard has been changed by someone else (HTTP: 412)"
-- have not found anyway to map this to a existing version, so for each ansible play, it wil create a new version of the dashboard in grafana.
+- If you don't have `owerwrite` when re-run (playbook) import grafana dashboards, it will fail with error: "Unable to update the dashboard xxx : The dashboard has been changed by someone else (HTTP: 412)"
+  - (have not found anyway to map this to a existing version, so for each ansible play, it wil create a new version of the dashboard in grafana.)
 ```yaml
 scale_grafana_bridge_grafana_dashboards_overwrite: yes
 ```
 
-Variables for the Grafana Dashboard task with state. Valid variables: `absent`, `present`
-absent will remove the what's created
+- Variables for the Grafana Dashboard task with state. Valid variables: `absent`, `present`
+  - `absent` will remove what's created
 ```yaml
 scale_grafana_bridge_grafana_dashboard_state: "present"
 ```
 
-Variables to set the same datasource for all dashboards.
+- Variables to set the same datasource for all dashboards.
 ```yaml
 scale_grafana_bridge_grafana_datasource_name_global: "ds-{{ scale_grafana_bridge_scale_cluster_name }}"
 ```
 
-List of all dashboards to download change the datasource on and import them to grafana.
- - We could also have imported the dashboards from the local gitclone, but then we might not have the same possibility to set names etc.
- - And with dashboard provisioner, we need access to the grafana instance. not just the restapi. (trying to do this without too much access) also for grafana instance in Openshift.
- - To change the dashboards you want, add, change the dashboards list below with a example from the ibm-spectrum-scale-bridge-for-grafana: https://github.com/IBM/ibm-spectrum-scale-bridge-for-grafana/tree/master/examples
+- List of all dashboards to download change the datasource on and import them to grafana.
+  - We could also have imported the dashboards from the local gitclone, but then we might not have the same possibility to set names etc.
+  - And with dashboard provisioner, we need access to the grafana instance. not just the restapi. (trying to do this without too much access) also for grafana instance in Openshift.
+  - To change the dashboards you want, add, change the dashboards list below with a example from the ibm-spectrum-scale-bridge-for-grafana: https://github.com/IBM/ibm-spectrum-scale-bridge-for-grafana/tree/master/examples
 
 ```yaml
 scale_grafana_bridge_grafana_dashboards:
@@ -303,25 +302,25 @@ scale_grafana_bridge_grafana_dashboards:
    datasource_name: "{{ scale_grafana_bridge_grafana_datasource_name_global }}"
 ```
 
-Grafana Data Source, the `tls_client_cert_file` and `tls_client_key_file` will be generated automatically,
+- Grafana Data Source, the `tls_client_cert_file` and `tls_client_key_file` will be generated automatically,
 
 - They can be replaced by signed one, just place them on the container/PODMAN host and change variables. and set `scale_brige_generate_ssl_certificate: false`
 ```yaml
 scale_grafana_brige_gen_ssl_certificate: true
 ```
-Then and populate the correct parameters:
+- Then and populate the correct parameters:
 ```yaml
 tls_client_cert_file: "/etc/bridge_ssl/certs/cert.pem"
 tls_client_key_file: "/etc/bridge_ssl/certs/privkey.pem"
 ```
 
-Optional: They whole cert's and key kan be set as a string with backslash \ for line break
+- Optional: They whole cert's and key kan be set as a string with backslash \ for line break
 ```yaml
 tls_client_cert_file: "-----BEGIN CERTIFICATE-----\nMIIDiTCCAnGgAwIBAgIUEDtzuxAzIYL/DML05apPouTElwgwDQYJKoZIhvcNAQEL\nBQAwVDELMAkGA1UEBhMCWFgxFTATBgNVBAcMDERlZmF1bHQgQ2l0eTEcMBoGA1UE\nCgwTRGVmYXVsdCBDb21wYW55IEx0ZDEQMA4GA1UEAwwHZ3JhZmFuYTAeFw0yMTEy\nMTAxMzA4MDNaFw0yMjEyMTAxMzA4MDNaMFQxCzAJBgNVBAYTAlhYMRUwEwYDVQQH\nDAxEZWZhdWx0IENpdHkxHDAaBgNVBAoME0RlZmF1bHQgQ29tcGFueSBMdGQxEDAO\nBgNVBAMMB2dyYWZhbmEwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDr\npYvmlM+jzl0uAdCtu9DTM7NY1g1GYQp9e2jxIWATtlF08X+O/TM7VqmkgF2q7qA1\n/AG/KjW6VszUW4nbrfM9pbNfzd1pId6m34pkZerN93L59vUSIAM21iG6HMcWlZdU\nmgM/4IAGRe+DtzZxY3bf5gLtRx5cPzArXNqX7IiEHSUvyDTErJ5Dw/QbF2Xs7jqN\ngGYk/FLZWEv5EKwuniwWG4UImRFLAVzKQT/NklXcl95Q/czhjJh1rn+rGT5OdQRV\nG1tgxAhfUDQ10MJH+FqmoAD4JWbrQJtaM5qLqCFbmmZ5NkpbwZaV7oeBG23Sjzch\ng6kRQuvQ545IPlUmJJJHAgMBAAGjUzBRMB0GA1UdDgQWBBRTG6NwLshFOGinj4Lg\nPXEMZRW11TAfBgNVHSMEGDAWgBRTG6NwLshFOGinj4LgPXEMZRW11TAPBgNVHRMB\nAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQA1p01+6SeTRdPo4t17YLxEaLzi\nxLutGV9OFx4BkVwtwkdXCED1P0IDVTCktdQoZbYvjMBPggDEaHh+wenGfeAhItv2\nh795JYxTVSWded8OPc9rVuuigNvGLjypt8V1sZnAG6nyZxyBi6bQSWqGj4MYz1Ie\nVvJ75KR6h9EbKnSnEstKklIMszyvKJQfFgev9ntlch4Y6/+rgkXT4inLAWs8H6da\nP0EzY6k4w1umzQGB5nHAkBPX1i11G2E+eMFC0c0dG5kwPticq6lElJPeYX8LZUWS\nBz394XvGIkGdbs6YNjxOJ1E/GSFCGiDiFYoW34uU/11Ed2tRL8P9uKzN6LVO\n-----END CERTIFICATE-----\n"
 tls_client_key_file: "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDrpYvmlM+jzl0u\nAdCtu9DTM7NY1g1GYQp9e2jxIWATtlF08X+O/TM7VqmkgF2q7qA1/AG/KjW6VszU\nW4nbrfM9pbNfzd1pId6m34pkZerN93L59vUSIAM21iG6HMcWlZdUmgM/4IAGRe+D\ntzZxY3bf5gLtRx5cPzArXNqX7IiEHSUvyDTErJ5Dw/QbF2Xs7jqNgGYk/FLZWEv5\nEKwuniwWG4UImRFLAVzKQT/NklXcl95Q/czhjJh1rn+rGT5OdQRVG1tgxAhfUDQ1\n0MJH+FqmoAD4JWbrQJtaM5qLqCFbmmZ5NkpbwZaV7oeBG23Sjzchg6kRQuvQ545I\nPlUmJJJHAgMBAAECggEARaeNjv710YmyaWMH+BLIS2XA4cWD7wXIQAc2ofAnoiwG\nL/ciqXWWqzeWtZVsGpamrM5tBcDIWOhHa44TVeg5OkO8ndkQVX85fUIeekbV/UPj\nrJefIVhtGsx487aF8tsM/Gj6BOurbC9H+Tsy0JmCDfTDcLfQ9ZuH9Ylg4/966vHR\nR8KNwoZJx6mCiT7b+oewMF3s9NkkxT1d08simgNf44Jx/I050g23c0E6Niob6LcN\nJ0MiFcZiEBAAVUDvNDY1893NlObiQrCyZWmZcUTlHcBRtN4vL9/qwt9jsDb+bLdZ\ni4xONDu4l0sXMBHQ8Jj2m1cAyzAs/U1BzmF9ixpiQQKBgQD8DwtGPUIKViFwzLcG\n9owXOcTDxQQU76VBNjaaswLPMy9eDPRCkTXAWBvuZJ9Ih1Y0gyGiuvtZh5cf0ZxT\n0U+t2tQB1bpaKCXKat56ybPLB95Db2rV0PdfKxmRaO31ScSwZsl/YjKGvd9XhS5K\nuob8waADSe5gfOKU/CVl2QpDrwKBgQDvVM6epMC8PAkIKMZSQfouAQhDdHOYYJsO\nVxxgLQf270LFDAps8dU2M8MjUwIkgExQ+BdZjcvellEXktm7UqC8oNEVUXej1Ywi\n/FFIkLzkKS15zhUP4tkVqkoasLnfesp5nWv6ENg1fkE2fzd/Wu1wSZ0vBs1TmC3L\nGkKJU6iI6QKBgC65xzhFINnzr41OldtXlw6zKdO00RXkevkEyMiSyMGKVoyT0DAK\n5TD75GmkA5cZZ5SifnjBOtkU9qHyZI1xLtkmyMhyS3JtINxORWHzxD2t/rj3jZGH\nhGQDBGFdV0dyXmDpHQ9dL8qkpiN+T9+QhneSmUwix2rhm8tMls4zluCHAoGAZI+c\n1bniJfWP0fbYBd4lEclrQHSg0Yjd/fOKP7sMGqzDwGnjw40FimXLe384aj/iUS89\nGGrlG5zLa/1PMU9xrHBiCfQWMifbXyPnv3bZd4D507FM1kT59Al+Y6KYJxfAFcOY\niBUl06w+GHjxx7hcBg9YVVclVRefPjTFelBFg2kCgYEAikg67jpXA7rPPnutXrb2\nEWvff8VU2LCae4qsaQDrS1RcUklch9G7tDApIvfcheboM3W8Flld9VpwAwe/O9l7\nqMmQbyGXK7sl738oFQOg9fqtDBS0mW2B44bDGtIHEA7vMXIFaDnHAIhlY963nxPx\n6gP7OSMsAjcDRseH/2IfVb8=\n-----END PRIVATE KEY-----\n"
 ```
 
-Variables for grafana DataSource creation, name need to match with the dashboards datasource.
+- Variables for grafana DataSource creation, name need to match with the dashboards datasource.
 ```yaml
 scale_grafana_bridge_grafana_datasources:
 - name: "{{ scale_grafana_bridge_grafana_datasource_name_global }}"
