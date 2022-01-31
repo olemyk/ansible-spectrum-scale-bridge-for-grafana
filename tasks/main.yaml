@@ -1,0 +1,54 @@
+---
+
+
+- import_tasks: pre_check.yaml
+  run_once: true
+
+- import_tasks: build_grafana_bridge_container.yaml
+  when:
+  - not scale_grafana_bridge_classic | bool
+  - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: scale_api_key.yaml
+  when:
+  - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: gen_ssl_certificate.yaml
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'].0 }}"
+  when:
+   - scale_grafana_brige_gen_ssl_certificate | bool
+   - not scale_grafana_bridge_cleanup | bool
+  run_once: true
+
+- import_tasks: load_container.yaml
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when:
+   - not scale_grafana_bridge_classic | bool
+   - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: grafana_api_keys.yaml
+  run_once: true
+  when:
+   - not scale_grafana_bridge_grafana_api_key is defined
+
+- import_tasks: create_datasource.yaml
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when:
+   - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: download_dashboard.yaml
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when:
+    - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: import_dashboard.yaml
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when:
+    - not scale_grafana_bridge_cleanup | bool
+
+- import_tasks: cleanup.yaml
+  when: scale_grafana_bridge_cleanup | bool

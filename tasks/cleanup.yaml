@@ -1,0 +1,193 @@
+---
+- name: Cleanup Grafana | Cleanup a Grafana Dashboard folder for Cluster.
+  community.grafana.grafana_folder:
+    url: "{{ scale_grafana_bridge_grafana_url }}"
+    grafana_api_key: "{{ scale_grafana_bridge_grafana_api_key | default(omit) }}"
+    title: "{{ scale_grafana_bridge_grafana_folder }}"
+    state: absent
+    validate_certs: "{{ scale_grafana_bridge_grafana_validate_certs }}"
+    skip_version_check: yes
+  run_once: true
+
+- name: Cleanup Grafana | Remove the OpenTSDB data source against Spectrum Scale Bridge
+  community.grafana.grafana_datasource:
+    name: "{{ item.name }}"
+    grafana_url: "{{ scale_grafana_bridge_grafana_url }}"
+    grafana_api_key: "{{ scale_grafana_bridge_grafana_api_key | default(omit) }}" #If set, url_username and url_password will be ignored.
+    ds_type: "{{ item.ds_type | default('opentsdb') }}"
+    ds_url: "{{ item.url }}" # DataSource url to Scale bridge ip.
+    database: "{{ item.database | default(omit) }}"
+    state: absent #"{{ item.state | default('present') }}"
+    tls_skip_verify: "{{ item.tls_skip_verify | default('yes') }}"
+    org_id: "{{ item.org_id | default(omit) }}" # default 1, Not used when scale_grafana_bridge_grafana_api_key is set, because the scale_grafana_bridge_grafana_api_key only belong to one organisation.
+  with_items: "{{ scale_grafana_bridge_grafana_datasources }}"
+  run_once: true
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+
+- name: Cleanup Grafana Bridge Container | Check if Scale Grafana Bridge systemd service unit exist
+  ansible.builtin.stat:
+    path: "{{ scale_grafana_bridge_container_systemd_path }}{{ scale_grafana_bridge_container_systemd_container_prefix }}-{{ scale_grafana_bridge_container_name }}.service"
+  register: grafana_bridge_systemd_stat
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+
+- name: Cleanup Grafana Bridge Container | Stop and Disable Scale bridge systemd container
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ scale_grafana_bridge_container_systemd_container_prefix }}-{{ scale_grafana_bridge_container_name }}"
+    enabled: no
+    state: stopped
+    daemon_reload: yes
+  register: grafana_service
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when: grafana_bridge_systemd_stat['stat']['exists']
+
+- name: Cleanup Grafana Bridge Container | Stop and remove Scale bridge container
+  containers.podman.podman_container:
+    name: "{{ scale_grafana_bridge_container_name }}" #grafana-bridge-test
+    state: absent  #absent - A container matching the specified name will be stopped and removed.
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  ignore_errors: true
+
+- name: Cleanup Grafana Bridge Container |  Retry - Stop and Disable Scale bridge systemd container
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ scale_grafana_bridge_container_systemd_container_prefix }}-{{ scale_grafana_bridge_container_name }}"
+    enabled: no
+    state: stopped
+    daemon_reload: yes
+  register: grafana_service
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  run_once: true
+  when: grafana_bridge_systemd_stat['stat']['exists']
+
+- name: Cleanup Grafana Bridge Container | Remove systemd service unit file
+  ansible.builtin.file:
+    path: "{{ scale_grafana_bridge_container_systemd_path }}{{ scale_grafana_bridge_container_systemd_container_prefix }}-{{ scale_grafana_bridge_container_name }}.service"
+    state: "absent"
+  when: grafana_bridge_systemd_stat['stat']['exists']
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  run_once: true
+#
+- name: Cleanup Grafana Bridge Container | Remove Spectrum Scale grafana bridge container image
+  containers.podman.podman_image:
+    name: "{{ scale_grafana_bridge_build_image_name }}"
+    state: absent
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  when: scale_grafana_bridge_cleanup_image | bool
+  run_once: true
+
+- name: Cleanup Grafana Bridge Container  | Deamon reload systemd to remove unit files
+  ansible.builtin.systemd:
+    daemon_reload: yes
+    daemon_reexec: yes
+    force: yes
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  run_once: true
+
+# My Clenaup dont look to be 100% correct yet, as the systemd is still hanging around, but the service files are removed
+- name: Cleanup Grafana Bridge Container  | Cleanup orphan systemd
+  command: systemctl reset-failed
+
+- name: Cleanup Grafana Bridge Folders | Cleanup log folder.
+  file:
+    path: "{{ scale_grafana_bridge_bridge_container_log.local_path }}"
+    state: absent
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+
+- name: Cleanup Grafana Bridge Folders | Cleanup Scale APIKEY folder.
+  file:
+    path: "{{ scale_grafana_bridge_scale_perf_apikey.path }}"
+    state: absent
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+
+- name: Cleanup Grafana Bridge Folders | Cleanup Scale TLS Cert folder.
+  file:
+    path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}"
+    state: absent
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+
+- name: Cleanup Grafana Bridge Folders | Cleanup Grafana APIKEY folder.
+  file:
+    path: "{{ scale_grafana_bridge_grafana_api_keys_dir }}"
+    state: absent
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  when: scale_grafana_bridge_grafana_api_key_save | bool
+
+- name: Cleanup Grafana Bridge Folder | Cleanup Spectrum Scale Grafana Bridge Repo folder.
+  file:
+    path: "{{ scale_grafana_bridge_repo_dest_path }}"
+    state: absent
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+
+- name: Cleanup Grafana Bridge Scale API | Check if APIKey from Spectrum Scale Cluster exist
+  command: /usr/lpp/mmfs/bin/mmperfmon config show --apiKey "{{ scale_grafana_bridge_scale_perf_apikey.name }}"
+  register: check_restapi_apikey
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  ignore_errors: true
+  run_once: true
+  changed_when: false
+
+- name: Cleanup Grafana Bridge Scale API | Remove APIKey from Spectrum Scale Cluster
+  command: "/usr/lpp/mmfs/bin/mmperfmon config delete --apiKey {{ scale_grafana_bridge_scale_perf_apikey.name }}"
+  register: restapi_apikey_output
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  when: check_restapi_apikey.rc == 0
+  run_once: true
+#
+#  Cleanup Grafana RESTAPI user
+#
+- name: Cleanup Grafana API Key | Check if Local APIKey file exists and delete "{{ inventory_hostname }}"
+  file:
+    path: "{{ scale_grafana_bridge_grafana_api_keys_dir }}/{{ inventory_hostname }}/{{ item.name }}.key"
+    state: absent
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  run_once: true
+
+- block:
+  - name: Cleanup Grafana API Key | Check API key list
+    uri:
+      url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys/"
+      user: "{{ scale_grafana_bridge_grafana_user }}"
+      password: "{{ scale_grafana_bridge_grafana_password }}"
+      method: GET
+      force_basic_auth: true
+      return_content: true
+    no_log: "{{ scale_grafana_bridge_no_log }}"
+    register: existing_api_keys
+    run_once: true
+
+  - set_fact:
+      admin_api_key_query: "[?name =='{{item.name}}'].id"
+    when:
+    - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+    with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+    ignore_errors: true
+
+  - set_fact:
+      admin_api_id: "{{ existing_api_keys.content | from_json | json_query(admin_api_key_query) | replace('[', '') | replace(']', '') }}"
+    when:
+    - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+    with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+
+  - name: Cleanup Grafana API Key | Delete Grafana API key
+    uri:
+      url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys/{{ admin_api_id }}"
+      user: "{{ scale_grafana_bridge_grafana_user }}"
+      password: "{{ scale_grafana_bridge_grafana_password }}"
+      force_basic_auth: true
+      method: DELETE
+    with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+    no_log: "{{ scale_grafana_bridge_no_log }}"
+    when:
+     - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+    register: delete_api_keys
+    run_once: true
+  when: scale_grafana_bridge_grafana_user is defined

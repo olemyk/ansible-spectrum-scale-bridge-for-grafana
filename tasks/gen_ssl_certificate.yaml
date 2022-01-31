@@ -1,0 +1,51 @@
+---
+- name: Generate Bridge Certificate | Create directory to save Certficate and used by container.
+  file:
+    path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}"
+    state: directory
+    owner: "{{ scale_grafana_bridge_rights_user }}"
+    group: "{{ scale_grafana_bridge_rights_group }}"
+    mode: "{{ scale_grafana_bridge_rights_mode_folder }}" #0755
+  run_once: true
+
+- name: Generate Bridge Certificate | Generate an OpenSSL private key
+  openssl_privatekey:
+    path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeyfile }}" ##/privkey.pem
+    size: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlsprivatesize }}"
+    type: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlsprivatekeytype }}" #RSA
+  run_once: true
+
+- name: Generate Bridge Certificate | Generate OpenSSL Certificate Signing Request (CSR)
+  openssl_csr:
+    path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlscsrfile }}" # cert.csr
+    privatekey_path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeyfile }}"
+    common_name: "{{ scale_grafana_bridge_scale_perf_ssl_cert.common_name }}"
+  run_once: true
+
+- name: Generate Bridge Certificate | Generate and/or check OpenSSL certificate
+  openssl_certificate:
+    provider: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlsprovider }}" #selfsigned
+    ownca_not_after: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlsvalid }}" #+3650d
+    path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlscertfile }}" #/etc/bridge_ssl/certs2/cert.pem
+    privatekey_path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeyfile }}"
+    csr_path: "{{ scale_grafana_bridge_scale_perf_ssl_cert.tlskeypath }}{{ scale_grafana_bridge_scale_perf_ssl_cert.tlscsrfile }}" #cert.csr
+    entrust_not_after: "{{ scale_grafana_bridge_scale_perf_ssl_cert.entrust_not_after }}"
+  run_once: true
+
+# Just some documentation
+#
+#    "-newkey rsa:2048" is dealt with "size" on privatekey
+#    "-x509" is defaulted
+#    "-nodes" and "-days 3650" I couldn't find
+
+#   read the cetificate: openssl x509 -in cert.pem -text -noout
+#     Issuer: CN = grafana
+#     Validity is 10 years.
+#            Not Before: Jan  9 18:47:16 2022 GMT
+#            Not After : Jan  7 18:47:16 2032 GMT
+#     Subject: CN = grafana
+
+# mkdir -p /etc/bridge_ssl/certs/
+# openssl genrsa -out /etc/bridge_ssl/certs/privkey.pem 2048
+# Generate a certificate.
+# openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/bridge_ssl/certs/privkey.pem -out /etc/bridge_ssl/certs/cert.pem

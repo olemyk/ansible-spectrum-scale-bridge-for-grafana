@@ -1,0 +1,60 @@
+---
+#
+# Starting with IBM Spectrum Scale version 5.1.1 any client querying the performance data from the IBM Spectrum Scale cluster needs the API key authentication.
+#
+- name: Create Scale Performance API key | Check if APIKey from Spectrum Scale Cluster exist
+  #command: /usr/lpp/mmfs/bin/mmperfmon config show --apiKey {{ "scale_grafana_bridge_scale_perf_apikey_name"|replace("_", "")|replace("_", "-") }} tried to replace with lowercase, TODO
+  command: /usr/lpp/mmfs/bin/mmperfmon config show --apiKey "{{ scale_grafana_bridge_scale_perf_apikey.name }}"
+  register: check_restapi_apikey
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  ignore_errors: true
+  run_once: true
+  changed_when: false
+
+- name: Create Scale Performance API key | Create APIKey from Spectrum Scale Cluster
+  command: "/usr/lpp/mmfs/bin/mmperfmon config add --apiKey {{ scale_grafana_bridge_scale_perf_apikey.name }}"
+  register: restapi_apikey_output
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  when: check_restapi_apikey.rc == 1
+  run_once: true
+
+- name:  Create Scale Performance API key | Get APIKey from Spectrum Scale Cluster
+  command: "/usr/lpp/mmfs/bin/mmperfmon config show --apiKey {{ scale_grafana_bridge_scale_perf_apikey.name }}"
+  register: show_restapi_apikey
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  run_once: true
+  changed_when: false
+
+- name: Create Scale Performance API key | Set APIKey as JSON
+  set_fact:
+    grafana_bridge_scale_perf_apikey_json: "{{ show_restapi_apikey.stdout | from_json }}"
+  run_once: true
+
+- name: Create Scale Performance API key | Set APIKey as fact before starting up the container
+  set_fact:
+    grafana_bridge_scale_perf_apikey_fact: "{{ grafana_bridge_scale_perf_apikey_json.key  }}"
+  run_once: true
+
+- name: "Create Scale Performance API key | Create APIkey folder localy on container host path: {{ scale_grafana_bridge_scale_perf_apikey.path }}"
+  file:
+    path: "{{ scale_grafana_bridge_scale_perf_apikey.path }}"
+    state: directory
+    owner: "{{ scale_grafana_bridge_rights_user }}"
+    group: "{{ scale_grafana_bridge_rights_group }}"
+    mode: "{{ scale_grafana_bridge_rights_mode_folder }}" #0644
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+
+
+- name: "Create Scale Performance API key | Create and save APIkey file localy on container host {{ groups['scale_grafana_bridge_container_host_list'][0] }} path: {{ scale_grafana_bridge_scale_perf_apikey.path }}"
+  become: false
+  ansible.builtin.copy:
+    dest: "{{ scale_grafana_bridge_scale_perf_apikey.path }}{{ scale_grafana_bridge_scale_perf_apikey.name }}"
+    content: "{{ grafana_bridge_scale_perf_apikey_json.key }}"
+    backup: false
+    owner: "{{ scale_grafana_bridge_rights_user }}"
+    group: "{{ scale_grafana_bridge_rights_group }}"
+    mode: "{{ scale_grafana_bridge_rights_mode_file }}" #0644
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  run_once: true

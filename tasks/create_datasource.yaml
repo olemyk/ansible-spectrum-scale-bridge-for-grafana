@@ -1,0 +1,47 @@
+---
+- name: Create DataSource | Grab content of tls_client_cert_file from file.
+  slurp:
+   src: "{{ item.tls_client_cert_file }}"
+  register: grafana_datasource_tls_client_cert_file
+  with_items:  "{{ scale_grafana_bridge_grafana_datasources }}"
+  run_once: true
+
+- name: Create DataSource | Set grafana_datasource_tls_client_cert as fact
+  set_fact:
+   _grafana_datasource_tls_client_cert: "{{ grafana_datasource_tls_client_cert_file.results.0.content | b64decode }}"
+  run_once: true
+
+- name: Create DataSource | Grab content from tls_client_key_file from file.
+  slurp:
+   src: "{{ item.tls_client_key_file }}"
+  register: grafana_datasource_tls_client_key_file
+  with_items:  "{{ scale_grafana_bridge_grafana_datasources }}"
+  run_once: true
+
+- name: Create DataSource | Set grafana_datasource_tls_client_key_file as fact
+  set_fact:
+   _grafana_datasource_tls_client_key: "{{ grafana_datasource_tls_client_key_file.results.0.content | b64decode }}"
+  run_once: true
+
+
+- name: Create DataSource | Create OpenTSDB data source against Spectrum Scale Bridge
+  community.grafana.grafana_datasource:
+    name: "{{ item.name }}"
+    grafana_url: "{{ scale_grafana_bridge_grafana_url }}"
+    #scale_grafana_bridge_grafana_user: "{{ scale_grafana_bridge_grafana_user | default(omit) }}" # If scale_grafana_bridge_grafana_api_key set, url_username and url_password will be ignored.
+    #scale_grafana_bridge_grafana_password: "{{ scale_grafana_bridge_grafana_password | default(omit) }}"
+    grafana_api_key: "{{ scale_grafana_bridge_grafana_api_key | default(omit) }}" #If set, url_username and url_password will be ignored.
+    ds_type: "{{ item.ds_type | default('opentsdb') }}"
+    ds_url: "{{ item.url }}" # DataSource url to Scale bridge ip.
+    database: "{{ item.database | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    tsdb_resolution: "{{ item.tsdb_resolution | default('second') }}"
+    tsdb_version: "{{ item.tsdb_version | default(3) }}"
+    is_default: "{{ item.isDefault | default('no') }}"
+    tls_skip_verify: "{{ item.tls_skip_verify | default('yes') }}"
+    org_id: "{{ item.org_id | default(omit) }}" # default 1, Not used when scale_grafana_bridge_grafana_api_key is set, because the scale_grafana_bridge_grafana_api_key only belong to one organisation.
+    tls_client_cert: "{{ _grafana_datasource_tls_client_cert }}"
+    tls_client_key: "{{ _grafana_datasource_tls_client_key }}"
+  with_items: "{{ scale_grafana_bridge_grafana_datasources }}"
+  run_once: true
+  no_log: "{{ scale_grafana_bridge_no_log }}"

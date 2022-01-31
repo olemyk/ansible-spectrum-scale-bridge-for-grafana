@@ -1,0 +1,29 @@
+---
+- name: Import Grafana Dashboard | Create a Grafan Dashboard folder for Cluster
+  community.grafana.grafana_folder:
+    url: "{{ scale_grafana_bridge_grafana_url }}"
+    grafana_api_key: "{{ scale_grafana_bridge_grafana_api_key | default(grafana_api_key_gen) }}"
+    title: "{{ scale_grafana_bridge_grafana_folder }}"
+    state: "{{ scale_grafana_bridge_grafana_folder_state }}"
+    validate_certs: "{{ scale_grafana_bridge_grafana_validate_certs }}"
+    skip_version_check: yes
+  run_once: true
+  when: scale_grafana_bridge_grafana_folder_create | bool
+
+- name: Import Grafana Dashboard | Import Dashboard from list
+  community.grafana.grafana_dashboard:
+    grafana_url: "{{ scale_grafana_bridge_grafana_url }}"
+    folder: "{{ scale_grafana_bridge_grafana_folder }}"
+    validate_certs: "{{ scale_grafana_bridge_grafana_validate_certs }}"
+    grafana_api_key: "{{ scale_grafana_bridge_grafana_api_key | default(grafana_api_key_gen) }}"
+    state: "{{ scale_grafana_bridge_grafana_dashboard_state }}"
+    commit_message: Updated by ansible
+    overwrite: "{{ scale_grafana_bridge_grafana_dashboards_overwrite }}"
+    path: "{{ _tmp_dashboards.path }}/{{ item.name }}"
+  loop: "{{ scale_grafana_bridge_grafana_dashboards|flatten(levels=1) }}"
+  run_once: true
+
+# Just for future improvements
+# Fileglobal only works on ansible controller. so we can run this against server with that options... so using the loop
+#with_fileglob:
+#  - "{{ _tmp_dashboards.path }}/"

@@ -1,0 +1,23 @@
+galaxy_info:
+  author: Ole kristian Myklebust
+  description: Installation and configuration of Grafana Bridge for IBM Spectrum Scale
+  company: IBM
+  license: Apache License 2.0
+  min_ansible_version: 2.9
+
+  platforms:
+   - name: EL
+     versions:
+      - 7
+      - 8
+
+  galaxy_tags:
+    - ibm
+    - spectrum
+    - scale
+    - grafana
+    - bridge
+
+dependencies:
+    - containers.podman
+    - community.grafana

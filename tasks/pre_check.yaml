@@ -1,0 +1,126 @@
+---
+
+- name: Precheck | Fail when scale_grafana_bridge_grafana_url is not defined
+  fail:
+    msg: "scale_grafana_bridge_grafana_url is not defined, point this to your grafana instance"
+  when:
+    -  scale_grafana_bridge_grafana_url== '' or scale_grafana_bridge_grafana_url is not defined
+
+- name: Precheck | Fail when both scale_grafana_bridge_grafana_api_key and scale_grafana_bridge_grafana_user defined
+  fail:
+    msg: "scale_grafana_bridge_grafana_api_key and scale_grafana_bridge_grafana_user is defined. Define either apikey or grafana user, not both"
+  when:
+    - scale_grafana_bridge_grafana_user is defined and scale_grafana_bridge_grafana_api_key is defined
+
+- name: Precheck | Fail when scale_grafana_bridge_grafana_api_key or scale_grafana_bridge_grafana_user is not defined
+  fail:
+    msg: "scale_grafana_bridge_grafana_api_key or scale_grafana_bridge_grafana_user is not defined. Define either one"
+  when:
+    - scale_grafana_bridge_grafana_user== '' or scale_grafana_bridge_grafana_user is not defined
+    - scale_grafana_bridge_grafana_api_key is not defined
+
+- name: Precheck | Fail when grafana admin user isn't set
+  fail:
+    msg: "Please specify grafana admin user (scale_grafana_bridge_grafana_user)"
+  when:
+    - scale_grafana_bridge_grafana_user== '' or scale_grafana_bridge_grafana_user is not defined
+    - scale_grafana_bridge_grafana_api_key is not defined
+
+- name: Precheck | Fail when grafana admin password isn't set
+  fail:
+    msg: "Please specify grafana admin password (scale_grafana_bridge_grafana_password)"
+  when:
+    - scale_grafana_bridge_grafana_password== '' or scale_grafana_bridge_grafana_password is not defined
+    - scale_grafana_bridge_grafana_api_key is not defined
+
+- name: Precheck | Fail when scale_grafana_bridge_grafana_api_keys uses invalid role names
+  fail:
+    msg: "Check grafana_api_keys. The role can only be one of the following values: Viewer, Editor or Admin."
+  when:
+    - item.role not in ['Viewer', 'Editor', 'Admin']
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+
+- name: Precheck | When 'NAME' variable is not defined in datasource definitions
+  fail:
+    msg: "Variables in grafana datasources name is not defined"
+  when: item.name is not defined #or item.name==None,
+  with_items: "{{ scale_grafana_bridge_grafana_datasources }}"
+
+- name: Precheck | When 'URL' variable is not defined in datasource definitions
+  fail:
+    msg: "variables in grafana datasources url is not defined"
+  when:  item.url is not defined #or item.url== None,
+  with_items: "{{ scale_grafana_bridge_grafana_datasources }}"
+
+- name: Precheck | Fail on incorrect variable types in datasource definitions
+  fail:
+    msg: "Boolean variables in scale_grafana_bridge_grafana_datasources shouldn't be passed as strings. Please remove unneeded apostrophes."
+  when: ( item.isDefault is defined and item.isDefault is string ) or
+        ( item.basicAuth is defined and item.basicAuth is string )
+  with_items: "{{ scale_grafana_bridge_grafana_datasources }}"
+#
+# Checks and create groups for host with scale_grafana_bridge_container_host=true in host vars
+#
+- name: Main | Checks | Initialize facts
+  set_fact:
+   scale_grafana_bridge_container_host_list_checks: []
+   scale_grafana_bridge_scale_host_list_checks: []
+  run_once: true
+
+- name: Main | Checks | Collect all podman nodes
+  set_fact:
+   scale_grafana_bridge_container_host_list_checks: "{{ scale_grafana_bridge_container_host_list_checks + [hostvars[item]['scale_grafana_bridge_container_host']] }}"
+  when: hostvars[item]['scale_grafana_bridge_container_host'] is defined and hostvars[item]['scale_grafana_bridge_container_host']|bool
+  with_items:
+   - "{{ ansible_play_hosts }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Main | Checks | Check if podman node is present.
+  assert:
+   that:
+   - scale_grafana_bridge_container_host_list_checks|length > 0
+   - scale_grafana_bridge_container_host_list_checks|length < 2
+   fail_msg: "Only one podman node is required. Please check and define a podman node."
+  delegate_to: localhost
+  run_once: true
+
+- name: Main | Configure | Find podman node and create group
+  add_host:
+    name: "{{ item }}"
+    groups: scale_grafana_bridge_container_host_list
+  when:
+     - hostvars[item].scale_grafana_bridge_container_host is defined
+     - (hostvars[item].scale_grafana_bridge_container_host | bool) or (hostvars[item].scale_grafana_bridge_container_host is defined and hostvars[item].scale_grafana_bridge_container_host | bool)
+  with_items: "{{ ansible_play_hosts }}"
+  changed_when: false
+
+#
+# Checks and creates groups for host with scale_grafana_bridge_scale_host=true in host vars
+#
+- name: Main | Checks | Collect all Spectrum Scale nodes
+  set_fact:
+   scale_grafana_bridge_scale_host_list_checks: "{{ scale_grafana_bridge_scale_host_list_checks + [hostvars[item]['scale_grafana_bridge_container_host']] }}"
+  when: hostvars[item]['scale_grafana_bridge_scale_host'] is defined and hostvars[item]['scale_grafana_bridge_scale_host']|bool
+  with_items:
+   - "{{ ansible_play_hosts }}"
+  delegate_to: localhost
+  run_once: true
+
+- name: Main | Checks | Check if Spectrum Scale node is spesified.
+  assert:
+   that:
+   - scale_grafana_bridge_scale_host_list_checks|length > 0
+   fail_msg: " Spectrum Scale node with GUI is required. Please define a Scale Node."
+  delegate_to: localhost
+  run_once: true
+
+- name: Main | Configure | Find Spectrum Scale node and create group
+  add_host:
+    name: "{{ item }}"
+    groups: scale_grafana_bridge_scale_host_list
+  when:
+     - hostvars[item].scale_grafana_bridge_scale_host is defined
+     - (hostvars[item].scale_grafana_bridge_scale_host | bool) or (hostvars[item].scale_grafana_bridge_scale_host is defined and hostvars[item].scale_grafana_bridge_scale_host | bool)
+  with_items: "{{ ansible_play_hosts }}"
+  changed_when: false

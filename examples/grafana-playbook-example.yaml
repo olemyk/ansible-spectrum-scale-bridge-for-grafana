@@ -1,0 +1,23 @@
+---
+- hosts: [scale_grafana]
+  roles:
+    - ../../ansible-spectrum-scale-bridge-for-grafana
+  vars:
+    scale_grafana_bridge_scale_cluster_name: "scale-test-os2"  # Name of the cluster, is used to add content to seperate configs, like podman image, containers, systemd, files.
+    scale_grafana_bridge_scale_node_name: "scale-test-os-1.oslo.forum.ibm.com"  #IP or hostname to the Spectrum Scale GUI/PMCollector node.
+    scale_grafana_bridge_hostname: "https://10.33.3.105" #IP or hostname to where we should point the Grafana datasource to, this should be Bridge/PODMAN IP
+    scale_grafana_bridge_port: 8446 # Port that will be used between Bridge and DataSource in Grafana instance, (and container network startup)
+    # Grafana bridge build the image and set name.
+    scale_grafana_bridge_build_image_name: "localhost/{{ scale_grafana_bridge_scale_cluster_name }}-grafana-bridge-image"
+    # scale_grafana_bridge_build_image_tag: 7.0.4  #this is the image tag in podman
+    scale_grafana_bridge_grafana_url: "http://10.33.3.105:3000"   # Point this to your grafana instance. (Dashboard)
+    # If the grafana User and Password is set, it will connect up and create a short lived apikey for import. name scale-apikey
+    scale_grafana_bridge_grafana_user: admin
+    scale_grafana_bridge_grafana_password: "jkn-cwu6umt@MPZ2fkd"
+    # Create a API key manually in the grafana instance/server.
+    # scale_grafana_bridge_grafana_api_key: 'eyJrIjoiSmd0SFFkZ1Q1TFFuZjRYVDlBcGlPcnZr' # If this is set then it will not use the grafana user.
+    scale_grafana_bridge_cleanup: false
+    scale_grafana_bridge_scale_perf_apikey:
+      name: "scale_grafana_bridge_api2" #
+      path: "/etc/ibm_scale_grafana_bridge/apikey/" # path to where the apikey should be saved.
+

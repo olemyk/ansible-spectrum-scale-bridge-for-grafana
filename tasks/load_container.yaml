@@ -1,0 +1,113 @@
+---
+
+#- set_fact:
+#    volumes_list: "{{ scale_grafana_bridge_container_volumes | map(attribute='volume') | list }}"
+
+#- scale_grafana_bridge_debug: msg={{ volumes_list }}
+
+#- debug: msg={{ scale_grafana_bridge_container_volumes }}
+#  run_once: true
+
+#- name: Calculate list of ports to launch container
+#  vars:
+#    current_port: "{{ item.value.host }}:{{ item.value.container }}"
+#  set_fact:
+#    port_list: "{{ port_list | default([]) + [current_port] }}"
+#  loop: "{{ lookup('dict', ports, wantlist=True) }}"
+
+##- hosts: docker_hosts
+##  gather_facts: no
+##  tasks:
+##    - name: copy tarball to host
+##      copy:
+##        src: ./democontainer_v1_0.tar
+##        dest: /root/democontainer_v1_0.tar
+##
+##    - name: load container from tarball
+##      docker_image:
+##        name: democontainer:v1.0
+##        load_path: /root/democontainer_v1_0.tar
+##        state: present
+##        source: load
+##
+##- name: Calculate list of ports to launch container
+##  vars:
+##    current_port: "{{ item.value.host }}:{{ item.value.container }}"
+##  set_fact:
+##    port_list: "{{ port_list | default([]) + [current_port] }}"
+##  loop: "{{ lookup('dict', ports, wantlist=True) }}"
+##
+##
+##- name: Run container
+##  containers.podman.podman_container:
+##    name: "{{ container_name }}"
+##    image: "{{ container_image }}"
+##    state: "{{ state }}"
+##    recreate: "{{ recreate }}"
+##    ports: "{{ port_list }}"
+##
+##- name: Calculate list of ports to launch container
+##  vars:
+##    current_port: "{{ item.value.host }}:{{ item.value.container }}"
+##  set_fact:
+##    port_list: "{{ port_list | default([]) + [current_port] }}"
+##  loop: "{{ lookup('dict', ports, wantlist=True) }}"
+##
+##- name: Run container
+##  containers.podman.podman_container:
+##    name: "{{ container_name }}"
+##    image: "{{ container_image }}"
+##    state: "{{ state }}"
+##    recreate: "{{ recreate }}"
+##    ports: "{{ port_list }}"
+#
+#
+
+- name: Load Container | Create local Directory for log
+  file:
+    path: "{{ scale_grafana_bridge_bridge_container_log.local_path }}"
+    state: directory
+    owner: "{{ scale_grafana_bridge_rights_user }}"
+    group: "{{ scale_grafana_bridge_rights_group }}"
+    mode: "{{ scale_grafana_bridge_rights_mode_folder }}" #0644
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+
+- name: Load Container | Start Scale bridge container
+  containers.podman.podman_container:
+    name: "{{ scale_grafana_bridge_container_name }}"
+    image: "{{ scale_grafana_bridge_container_image }}" #{{ scale_grafana_bridge_scale_cluster_name }}-grafana-bridge-image"
+    state: "{{ scale_grafana_bridge_container_state }}"  #started
+    detach: "{{ scale_grafana_bridge_container_detach }}" #true
+    log_level: "{{ scale_grafana_bridge_container_log_level }}"
+    exposed_ports: "{{ scale_grafana_bridge_container_exposed_ports }}"
+    ports: "{{ scale_grafana_bridge_container_ports }}"
+    volumes: "{{ scale_grafana_bridge_container_volumes }}"
+    env: "{{ scale_grafana_bridge_container_env }}"
+    recreate: "{{ scale_grafana_bridge_container_recreate | default(omit) }}"
+    timezone: "{{ scale_grafana_bridge_container_timezone | default(omit) }}"
+    systemd: "{{ scale_grafana_bridge_container_systemd | default(omit) }}"
+    generate_systemd:
+      path: "{{ scale_grafana_bridge_container_systemd_path }}"
+      container_prefix: "{{ scale_grafana_bridge_container_systemd_container_prefix | default(omit) }}"
+      #new: yes
+      pod_prefix: "{{ scale_grafana_bridge_container_systemd_podprefix | default('scale_grafana_bridge') }}"
+      restart_policy: always
+      #names: yes
+      #time: 120
+      #names: true
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+
+- name: Load Container | Start Scale bridge systemd container
+  become: true
+  ansible.builtin.systemd:
+    name: "{{ scale_grafana_bridge_container_systemd_container_prefix }}-{{ scale_grafana_bridge_container_name }}"
+    daemon_reload: yes
+    enabled: yes
+    state: "{{ scale_grafana_bridge_container_state }}"
+  register: service
+  until: service.failed == false
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+
+#- name:  Load Bridge Container | Check logs for Scale bridge. todo

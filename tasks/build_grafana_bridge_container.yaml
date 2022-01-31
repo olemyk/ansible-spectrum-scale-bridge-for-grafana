@@ -1,0 +1,32 @@
+---
+- name: Build Grafana Bridge Container | Git Clone Scale Bridge
+  ansible.builtin.git:
+    repo: "{{ scale_grafana_bridge_repo_url }}"
+    dest: "{{ scale_grafana_bridge_repo_dest_path }}" #/root/ibm-spectrum-scale-bridge-for-grafana
+    version: "{{ scale_grafana_bridge_git_version }}" #v7.0.4
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+
+- name: Build Grafana Bridge Container | Fetch gpfsconfig from Spectrum Scale Collector node to ansible controller node
+  fetch:
+    src: "{{ scale_grafana_bridge_scale_gpfsconfig_src_path }}" #/var/mmfs/gen/mmsdrfs
+    dest: "{{ scale_grafana_bridge_gpfsconfig_tmp_dest_path }}"  #playabook folder >/temp/mmsdrfs
+    flat: yes
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}"
+  run_once: true
+
+- name: Build Grafana Bridge Container | Copy gpfsconfig from ansible controller to container host "{{ groups['scale_grafana_bridge_container_host_list'][0] }}"
+  copy:
+    src: "{{ scale_grafana_bridge_gpfsconfig_tmp_src_path }}" #temp/mmsdrfs #/var/tmp/lab-scale1/var/mmfs/gen/mmsdrfs
+    dest: "{{ scale_grafana_bridge_gpfsconfig_dest_path }}" #/root/ibm-spectrum-scale-bridge-for-grafana/source/gpfsConfig
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  run_once: true
+
+- name: Build Grafana Bridge Container | Build Spectrum Scale grafana bridge container
+  containers.podman.podman_image:
+    name: "{{ scale_grafana_bridge_build_image_name }}"
+    tag: "{{ scale_grafana_bridge_build_image_tag | default(omit) }}"
+    path: "{{ scale_grafana_bridge_repo_dest_path }}"  #/root/ibm-spectrum-scale-bridge-for-grafana
+    state: build
+  delegate_to: "{{ groups['scale_grafana_bridge_container_host_list'][0] }}" #podman
+  run_once: true

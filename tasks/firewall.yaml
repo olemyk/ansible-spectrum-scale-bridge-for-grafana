@@ -1,0 +1,56 @@
+---
+## TODO
+- name: Firewall | Configure firewall if container_firewall_ports is defined
+  block:
+
+  - name: set firewall ports state to enabled when container state is running
+    set_fact:
+      fw_state: enabled
+    when: container_state == "running"
+
+  - name: disable firewall ports state when container state is not running
+    set_fact:
+      fw_state: disabled
+    when: container_state != "running"
+
+  - name: ensure firewalld is installed
+    tags: firewall
+    package: name=firewalld state=present
+    become: true
+    when: ansible_pkg_mgr != "atomic_container"
+
+  - name: ensure firewalld is installed (on fedora-iot)
+    tags: firewall
+    command: >-
+      rpm-ostree install --idempotent --unchanged-exit-77
+      --allow-inactive firewalld
+    register: ostree
+    failed_when: not ( ostree.rc == 77 or ostree.rc == 0 )
+    changed_when: ostree.rc != 77
+    when: ansible_pkg_mgr == "atomic_container"
+
+  - name: reboot if new stuff was installed
+    reboot:
+      reboot_timeout: 300
+    when:
+      - ansible_pkg_mgr == "atomic_container"
+      - ostree.rc != 77
+
+  - name: ensure firewall service is running
+    tags: firewall
+    service: name=firewalld state=started
+
+  - name: ensure container's exposed ports firewall state
+    tags: firewall
+    ansible.posix.firewalld:
+      port: "{{ item }}"
+      permanent: true
+      immediate: true
+      state: "{{ fw_state }}"
+    become: true
+    with_items: "{{ container_firewall_ports }}"
+
+  - name: Force all notified handlers to run at this point
+    meta: flush_handlers
+
+  when: container_firewall_ports is defined

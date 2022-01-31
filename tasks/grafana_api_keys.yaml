@@ -1,0 +1,213 @@
+---
+#
+# This code part is a mess, just tries to create a api key, but this cant be re-read, and then it either need to be deleted and recreated or saved localy..
+#
+- name: Grafana API Key | Check API key list
+  uri:
+    url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys/"
+    user: "{{ scale_grafana_bridge_grafana_user }}"
+    password: "{{ scale_grafana_bridge_grafana_password }}"
+    method: GET
+    force_basic_auth: true
+    return_content: true
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  register: existing_api_keys
+  run_once: true
+
+- set_fact:
+    existing_api_key: true
+  when:
+  - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+
+#- set_fact:
+#    admin_api_key_query: "[?name =='scale-apikey'].id"
+#  when: existing_api_key == true
+#  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+#  ignore_errors: true
+#
+#- set_fact:
+#    admin_api_id: "{{ existing_api_keys.content | from_json | json_query(admin_api_key_query) | replace('[', '') | replace(']', '') }}"
+#  when: existing_api_key == true
+
+- set_fact:
+    admin_api_key_query: "[?name =='{{item.name}}'].id"
+  when:
+  - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  ignore_errors: true
+
+- set_fact:
+    admin_api_id: "{{ existing_api_keys.content | from_json | json_query(admin_api_key_query) | replace('[', '') | replace(']', '') }}"
+  when:
+  - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+
+# TODO  Work in progress to delete existing apikey, having issues looking up users that is expired.
+#- name: Grafana API Key | List Grafana API keys - Debug
+#  debug:
+#     #msg: "{{ existing_api_keys.json.0.id }}"
+#     #msg: '"((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list)"'
+#  run_once: true
+#  #when: scale_grafana_bridge_debug | bool
+
+#body_format: json
+#body: [{"id":1,"name":"grafana-reporter","role":"Viewer"}]
+#body: [{"includeExpired":"true"}]
+#[{ "includeExpired": "true" }]
+
+# To register ID For future improvements.
+- name: Grafana API Key | list Grafana API ID - Debug
+  debug:
+     var: ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list)
+  run_once: true
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  when:
+    - scale_grafana_bridge_debug | bool
+
+- name: Grafana API Key | Delete Grafana API keys
+  uri:
+    url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys/{{ admin_api_id }}"
+    user: "{{ scale_grafana_bridge_grafana_user }}"
+    password: "{{ scale_grafana_bridge_grafana_password }}"
+    force_basic_auth: true
+    method: DELETE
+    #body_format: json
+    #body: "{{ existing_api_keys.results.0.json.id }}"
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  when:
+   - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+   - not scale_grafana_bridge_grafana_api_key_save | bool
+  register: delete_api_keys
+  run_once: true
+
+# Register the APIKey
+
+- name: Grafana API Key | Check API key list
+  uri:
+    url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys/"
+    user: "{{ scale_grafana_bridge_grafana_user }}"
+    password: "{{ scale_grafana_bridge_grafana_password }}"
+    method: GET
+    force_basic_auth: true
+    return_content: true
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  register: existing_api_keys
+  run_once: true
+
+- name: Grafana API Key | Create Grafana API keys (Turn of no_log to get output. scale_grafana_bridge_no_log)
+  uri:
+    url: "{{ scale_grafana_bridge_grafana_url }}/api/auth/keys"
+    user: "{{ scale_grafana_bridge_grafana_user }}"
+    password: "{{ scale_grafana_bridge_grafana_password }}"
+    force_basic_auth: true
+    method: POST
+    body_format: json
+    body: "{{ item | to_json }}"
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  when: ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 0
+  register: new_api_keys
+  run_once: true
+
+- name: Grafana API Key | Create Grafana API keys - Debug
+  debug:
+     msg: "{{ new_api_keys.results.0.json.key }}"
+  run_once: true
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  when:
+    - scale_grafana_bridge_debug | bool
+    - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 0
+
+# To register ID For future improvements.
+- name: Grafana API Key | Create Grafana API ID - Debug
+  debug:
+     msg: "{{ new_api_keys.results.0.json.id }}"
+  run_once: true
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  when:
+    - scale_grafana_bridge_debug | bool
+    - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 0
+    - not scale_grafana_bridge_grafana_api_key_save | bool
+
+- name: Grafana API Key | Ensure Grafana key directory exists
+  become: false
+  file:
+    path: "{{ scale_grafana_bridge_grafana_api_keys_dir }}/{{ inventory_hostname }}"
+    state: directory
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  when:
+    - scale_grafana_bridge_grafana_api_key_save | bool
+    - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 0
+  run_once: true
+
+- name: "Grafana API Key | Create API keys file localy on ansible host: {{ inventory_hostname }} - path: {{ scale_grafana_bridge_grafana_api_keys_dir }}"
+  become: false
+  copy:
+    dest: "{{ scale_grafana_bridge_grafana_api_keys_dir }}/{{ inventory_hostname }}/{{ item['item']['name'] }}.key"
+    content: "{{ item['json']['key'] }}"
+    backup: false
+  when:
+    - item['json'] is defined
+    - scale_grafana_bridge_grafana_api_key_save | bool
+  with_items: "{{ new_api_keys['results'] }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  run_once: true
+
+- name: Grafana API Key | Set generated API keys in fact for next tasks
+  set_fact:
+    scale_grafana_bridge_grafana_api_key: "{{ item['json']['key'] }}"
+  when:
+      - item['json'] is defined
+  with_items: "{{ new_api_keys['results'] }}"
+  no_log: "{{ scale_grafana_bridge_no_log }}"
+  run_once: true
+
+
+- name: Grafana API Key | Check if APIKey file exists
+  stat:
+    path: "{{ scale_grafana_bridge_grafana_api_keys_dir }}/{{ inventory_hostname }}/{{ item.name }}.key"
+  register: apikey_stat_result
+  with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+  #no_log: "{{ scale_grafana_bridge_no_log }}"
+  run_once: true
+
+- block:
+   - debug:
+       msg: "{{ apikey_stat_result.results.0.stat.exists }}"
+
+   - name: Grafana API Key | Read Api Key from local directory when rerun playbook
+     set_fact:
+       grafana_api_key_file: "{{ apikey_stat_result.results.0.stat.path }}" ##{{ scale_grafana_bridge_grafana_api_keys_dir }}/{{ inventory_hostname }}/{{ apikey_stat_result.stat.name }}.key"
+     with_items: "{{ scale_grafana_bridge_grafana_api_keys }}"
+     when:
+      - apikey_stat_result.results.0.stat.exists
+      - ((existing_api_keys['json'] | selectattr("name", "equalto", item['name'])) | list) | length == 1
+     no_log: "{{ scale_grafana_bridge_no_log }}"
+     run_once: true
+
+   - name: Extract apikey from file
+     slurp:
+       src: "{{ grafana_api_key_file }}"
+     register: grafana_api_key_file
+     run_once: true
+
+   - debug:
+       msg: "{{ grafana_api_key_file }}"
+     run_once: true
+
+   - name: Grafana API Key | Set API Key as fact
+     set_fact:
+       scale_grafana_bridge_grafana_api_key: "{{ grafana_api_key_file.content | b64decode }}"
+     run_once: true
+
+   - debug:
+       msg: "{{ scale_grafana_bridge_grafana_api_key }}"
+
+  when:
+     - apikey_stat_result.results.0.stat.exists
+     - new_api_keys.changed == false
+     - scale_grafana_bridge_grafana_api_key_save | bool

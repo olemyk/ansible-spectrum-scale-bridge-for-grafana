@@ -1,0 +1,12 @@
+---
+# todo
+- name: Grafana Bridge Classic | Git Clone Scale Bridge
+  ansible.builtin.git:
+    repo: "{{ scale_grafana_bridge_repo_url }}"
+    dest: "{{ scale_grafana_bridge_repo_dest_path }}" #/root/ibm-spectrum-scale-bridge-for-grafana
+    version: "{{ scale_grafana_bridge_git_version }}" #v7.0.4
+  run_once: true
+  delegate_to: "{{ groups['scale_grafana_bridge_scale_host_list'][0] }}" #podman
+
+- name: Start the Bridge script
+  Command: python3 zimonGrafanaIntf.py -p 8443 -t /etc/bridge_ssl/certs -k privkey.pem -m cert.pem
