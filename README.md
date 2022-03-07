@@ -33,6 +33,8 @@ Following feature
 
 **Future plans:**
 * Rootless container and systemd. run with user 
+* readonly on folders --volume /etc/bridge_ssl/certs:/etc/bridge_ssl/certs:ro
+* Use /srv insted of /etc and /var
 * Classic/non container version of Bridge, [Bridge-for-classic-IBM-Spectrum-Scale-devices](https://github.com/IBM/ibm-spectrum-scale-bridge-for-grafana/wiki/Setup-the-IBM-Spectrum-Scale-Performance-Monitoring-Bridge-for-classic-IBM-Spectrum-Scale-devices)
 * CPU and Memory restriction on container?
 * Add more example of Dashboards.
